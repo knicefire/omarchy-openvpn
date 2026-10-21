@@ -422,7 +422,18 @@ Panel {
                     color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.caption
                   }
                 }
-                OpenVpnSmallButton { Layout.rightMargin: Style.space(8); foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: row.profile.active ? "Disconnect" : (row.profile.connecting ? "Connecting…" : "Connect"); enabled: root.busyUuid === "" && !row.profile.connecting; onActivated: root.setConnection(row.profile) }
+                // Bound to the profile state and never set by hand, so a
+                // cancelled credential dialog leaves the switch off.
+                ToggleSwitch {
+                  Layout.rightMargin: Style.space(8)
+                  checked: row.profile.active || row.profile.connecting
+                  busy: root.busyUuid !== "" || row.profile.connecting
+                  // ToggleSwitch only ignores clicks while busy; dim it as well.
+                  opacity: busy ? 0.55 : 1
+                  foreground: root.foreground
+                  accent: Color.accent
+                  onToggled: root.setConnection(row.profile)
+                }
               }
 
               Column {
