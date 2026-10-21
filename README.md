@@ -63,8 +63,9 @@ Omarchy can subsequently update or remove the git-managed plugin with
 
 Left-click the VPN icon to open the panel.
 
-- Select **Connect** and enter the credentials required by the profile.
-- Select **Disconnect** to stop an active connection.
+- Turn a profile's switch on to connect, and enter the credentials if the
+  profile asks for them.
+- Turn the switch off to disconnect.
 - Select the gear in the panel header to open the settings view. There you can:
   - turn **Allow several connections** on or off
   - select **+** to import an OpenVPN configuration through the Omarchy file
