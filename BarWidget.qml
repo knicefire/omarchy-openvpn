@@ -25,11 +25,14 @@ Panel {
   property string renameName: ""
   readonly property var connectionDetails: service.connectionDetails
   readonly property bool nmcliAvailable: service.nmcliAvailable
+  property bool settingsOpen: false
+  property bool pendingDeleteConnected: false
 
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   readonly property string configuredName: String(settings.connection || "").trim()
+  readonly property bool allowSeveralConnections: service.settingFlag(settings.allowSeveralConnections, true)
   readonly property int connectedCount: {
     var count = 0
     for (var i = 0; i < profiles.length; i++) if (profiles[i].active) count++
@@ -80,6 +83,7 @@ Panel {
   function requestDelete(profile) {
     pendingDeleteUuid = profile.uuid
     pendingDeleteName = profile.name
+    pendingDeleteConnected = profile.active || profile.connecting
   }
 
   function requestRename(profile) {
@@ -107,6 +111,7 @@ Panel {
   function cancelDelete() {
     pendingDeleteUuid = ""
     pendingDeleteName = ""
+    pendingDeleteConnected = false
   }
 
   function confirmDelete() {
@@ -119,9 +124,34 @@ Panel {
     service.importProfile(bundledPath("import-profile"))
   }
 
+  function openSettings() { cancelDelete(); settingsOpen = true }
+  function closeSettings() { cancelDelete(); settingsOpen = false }
+
+  // Escape steps back one level: the delete confirmation, then the settings
+  // view, then the panel itself.
+  function handleEscape() {
+    if (pendingDeleteUuid !== "") cancelDelete()
+    else if (settingsOpen) closeSettings()
+    else root.close()
+  }
+
+  // updateEntryInline replaces the widget's whole entry, so merge the new
+  // values into the current settings first, as the built-in panels do.
+  function persistSettings(values) {
+    var entry = { id: root.moduleName }
+    for (var existing in root.settings) if (existing !== "id") entry[existing] = root.settings[existing]
+    for (var key in values) entry[key] = values[key]
+    root.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
+
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
-  onOpenedChanged: if (opened) { refresh(); Qt.callLater(function() { keys.forceActiveFocus() }) }
+  onOpenedChanged: {
+    if (opened) { refresh(); Qt.callLater(function() { keys.forceActiveFocus() }) }
+    else { settingsOpen = false; cancelDelete() }
+  }
 
   IpcHandler {
     target: root.ipcTarget
@@ -134,6 +164,7 @@ Panel {
 
   OpenVpnService {
     id: service
+    allowSeveralConnections: root.allowSeveralConnections
     configuredName: root.configuredName
     refreshInterval: root.refreshInterval
     queryHelper: root.bundledPath("nmcli-query")
@@ -180,7 +211,7 @@ Panel {
       id: keys
       anchors.fill: parent
       blocked: root.authUuid !== "" || root.renameUuid !== ""
-      onCloseRequested: root.close()
+      onCloseRequested: root.handleEscape()
       onTabRequested: function(direction) { root.switchPanel(direction) }
       onTextKey: function(t) { if (t === "r" || t === "R") root.refresh() }
 
@@ -199,8 +230,19 @@ Panel {
             width: parent.width
             implicitHeight: Math.max(heroIcon.implicitHeight, heroLabels.implicitHeight, refreshButton.height)
 
+            OpenVpnIconButton {
+              id: backButton
+              visible: root.settingsOpen
+              anchors.left: parent.left
+              anchors.verticalCenter: parent.verticalCenter
+              foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
+              icon: ""
+              onActivated: root.closeSettings()
+            }
+
             Text {
               id: heroIcon
+              visible: !root.settingsOpen
               anchors.left: parent.left
               anchors.verticalCenter: parent.verticalCenter
               text: root.vpnIcon
@@ -212,16 +254,16 @@ Panel {
 
             Column {
               id: heroLabels
-              anchors.left: heroIcon.right
+              anchors.left: root.settingsOpen ? backButton.right : heroIcon.right
               anchors.leftMargin: Style.space(14)
-              anchors.right: importButton.left
+              anchors.right: root.settingsOpen ? importButton.left : refreshButton.left
               anchors.rightMargin: Style.space(12)
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(2)
 
               Text {
                 width: parent.width
-                text: "OpenVPN"
+                text: root.settingsOpen ? "Settings" : "OpenVPN"
                 color: root.foreground
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.title
@@ -230,7 +272,7 @@ Panel {
               }
               Text {
                 width: parent.width
-                text: root.heroStatus.toUpperCase()
+                text: (root.settingsOpen ? "OpenVPN" : root.heroStatus).toUpperCase()
                 textFormat: Text.PlainText
                 color: root.dim
                 font.family: root.fontFamily
@@ -243,8 +285,8 @@ Panel {
 
             OpenVpnIconButton {
               id: importButton
-              anchors.right: refreshButton.left
-              anchors.rightMargin: Style.space(8)
+              visible: root.settingsOpen
+              anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
               foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
               icon: "\uf067"
@@ -254,11 +296,23 @@ Panel {
 
             OpenVpnIconButton {
               id: refreshButton
-              anchors.right: parent.right
+              visible: !root.settingsOpen
+              anchors.right: settingsButton.left
+              anchors.rightMargin: Style.space(8)
               anchors.verticalCenter: parent.verticalCenter
               foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
               icon: "\uf021"
               onActivated: root.refresh()
+            }
+
+            OpenVpnIconButton {
+              id: settingsButton
+              visible: !root.settingsOpen
+              anchors.right: parent.right
+              anchors.verticalCenter: parent.verticalCenter
+              foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
+              icon: "\uf013"
+              onActivated: root.openSettings()
             }
           }
 
@@ -286,10 +340,10 @@ Panel {
               spacing: Style.space(8)
               Text {
                 width: parent.width
-                text: "Delete “" + root.pendingDeleteName + "”?"
+                text: "Delete “" + root.pendingDeleteName + "”?" + (root.pendingDeleteConnected ? " It will be disconnected first." : "")
                 textFormat: Text.PlainText
                 color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body
-                elide: Text.ElideRight
+                wrapMode: Text.WordWrap
               }
               Row {
                 anchors.right: parent.right; spacing: Style.space(16)
@@ -313,6 +367,7 @@ Panel {
               required property int index
               readonly property var profile: modelData
               readonly property var details: root.connectionDetails[profile.uuid] || ({})
+              visible: !root.settingsOpen
               width: content.width
 
               Rectangle { visible: row.index > 0; width: parent.width; height: 1; color: root.foreground; opacity: 0.14 }
@@ -337,9 +392,7 @@ Panel {
                     color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.caption
                   }
                 }
-                OpenVpnSmallButton { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: row.profile.active ? "Disconnect" : (row.profile.connecting ? "Connecting…" : "Connect"); enabled: root.busyUuid === "" && !row.profile.connecting; onActivated: root.setConnection(row.profile) }
-                OpenVpnSmallButton { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: "Rename"; enabled: root.busyUuid === "" && !row.profile.connecting; onActivated: root.requestRename(row.profile) }
-                OpenVpnSmallButton { Layout.rightMargin: Style.space(8); foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: "Delete"; urgent: true; enabled: root.busyUuid === "" && !row.profile.connecting; onActivated: root.requestDelete(row.profile) }
+                OpenVpnSmallButton { Layout.rightMargin: Style.space(8); foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: row.profile.active ? "Disconnect" : (row.profile.connecting ? "Connecting…" : "Connect"); enabled: root.busyUuid === "" && !row.profile.connecting; onActivated: root.setConnection(row.profile) }
               }
 
               Column {
@@ -354,6 +407,20 @@ Panel {
                 OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "DNS"; value: row.details.dns || "—" }
               }
             }
+          }
+
+          OpenVpnSettingsView {
+            visible: root.settingsOpen
+            width: parent.width
+            profiles: root.profiles
+            busyUuid: root.busyUuid
+            allowSeveralConnections: root.allowSeveralConnections
+            foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
+            urgentColor: bar ? bar.urgent : Color.urgent
+            profileIcon: root.profileIcon
+            onSeveralConnectionsToggled: root.persistSettings({ allowSeveralConnections: !root.allowSeveralConnections })
+            onRenameRequested: function(profile) { root.requestRename(profile) }
+            onDeleteRequested: function(profile) { root.requestDelete(profile) }
           }
 
         }
