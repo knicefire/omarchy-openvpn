@@ -13,6 +13,9 @@ Item {
   property string busyUuid: ""
   property string authUuid: ""
   property string authName: ""
+  // True while a certificate-only profile connects: there is nothing to ask,
+  // so the panel keeps its credential dialog hidden.
+  property bool authCertOnly: false
   property string authUsername: ""
   property string authPassword: ""
   // uuid -> { state, device, address, gateway, dns } for every connected profile.
@@ -121,13 +124,14 @@ Item {
     }
   }
 
-  function setConnection(profile) {
+  function setConnection(profile, certOnly) {
     if (!profile || profile.connecting || actionProcess.running || authProcess.running) return false
     if (!profile.active) {
       authUuid = profile.uuid
       authName = profile.name
       authUsername = ""
       authPassword = ""
+      authCertOnly = certOnly === true
       setError("")
       return true
     }
@@ -140,6 +144,7 @@ Item {
 
   function cancelAuthentication() {
     authUuid = ""
+    authCertOnly = false
     authName = ""
     authUsername = ""
     authPassword = ""

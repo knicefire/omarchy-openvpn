@@ -19,10 +19,7 @@ Panel {
   property string pendingDeleteUuid: ""
   property string pendingDeleteName: ""
   readonly property string authUuid: service.authUuid
-  // True while a certificate-only profile connects: the credential flow runs,
-  // but there is nothing to ask, so its dialog stays hidden.
-  property bool certOnlyConnect: false
-  onAuthUuidChanged: if (authUuid === "") certOnlyConnect = false
+  readonly property bool certOnlyConnect: service.authCertOnly
   readonly property string authName: service.authName
   property string renameUuid: ""
   property string renameOriginalName: ""
@@ -82,10 +79,9 @@ Panel {
       certTypeProc.pendingProfile = null
       if (!profile) return
       var certOnly = /connection-type\s*=\s*tls/.test(String(certTypeProc.stdout.text || ""))
-      if (!service.setConnection(profile)) return
+      if (!service.setConnection(profile, certOnly)) return
       if (certOnly) {
         // authUsername/authPassword are already blank here.
-        root.certOnlyConnect = true
         root.submitAuthentication()
       } else {
         Qt.callLater(function() { usernameField.forceActiveFocus() })
@@ -171,7 +167,7 @@ Panel {
     configuredName: root.configuredName
     refreshInterval: root.refreshInterval
     queryHelper: root.bundledPath("nmcli-query")
-    onAuthenticationFailed: Qt.callLater(function() { passwordField.forceActiveFocus() })
+    onAuthenticationFailed: if (!root.certOnlyConnect) Qt.callLater(function() { passwordField.forceActiveFocus() })
   }
 
   BarIconButton {
