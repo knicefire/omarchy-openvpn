@@ -18,11 +18,13 @@ popup for connecting, disconnecting, importing, renaming, and deleting profiles.
 - Shows connected, connecting, disconnected, and unavailable states
 - Lists NetworkManager VPN profiles
 - Connects using a username and password supplied through standard input
-- Keeps several VPN connections up at once and disconnects each on its own
+- Keeps several VPN connections up at once, or one at a time if you turn that
+  off in the settings view
 - Shows the interface, IPv4 address, gateway, and DNS server under each
   connected profile
 - Imports `.ovpn` and `.conf` profiles using Omarchy's file picker
-- Renames and deletes profiles
+- Renames and deletes profiles; a connected profile is disconnected before it
+  is deleted
 - Supports keyboard dismissal and Omarchy panel switching
 - Provides configurable profile filtering and refresh intervals
 
@@ -63,27 +65,32 @@ Left-click the VPN icon to open the panel.
 
 - Select **Connect** and enter the credentials required by the profile.
 - Select **Disconnect** to stop an active connection.
-- Use **Rename** or **Delete** to manage an existing profile.
-- Select **+** in the panel header to import an OpenVPN configuration through
-  the Omarchy file picker.
+- Select the gear in the panel header to open the settings view. There you can:
+  - turn **Allow several connections** on or off
+  - select **+** to import an OpenVPN configuration through the Omarchy file
+    picker
+  - use **Rename** or **Delete** to manage an existing profile
 - Press `R` while the panel has focus to refresh it.
-- Press `Escape` to close the panel or credential dialog.
+- Press `Escape` to step back: from a delete confirmation, from the settings
+  view, then to close the panel. It also closes the credential dialog.
 
 ## Configuration
 
 Widget settings are stored in the widget's entry in
 `~/.config/omarchy/shell.json`.
 
-| Setting              | Default | Description                                                     |
-| -------------------- | ------: | --------------------------------------------------------------- |
-| `connection`         |   Empty | Exact profile name to display. Empty displays all VPN profiles. |
-| `refreshIntervalSec` |     `5` | Status refresh interval, clamped between 2 and 300 seconds.     |
+| Setting                   | Default | Description                                                     |
+| ------------------------- | ------: | --------------------------------------------------------------- |
+| `connection`              |   Empty | Exact profile name to display. Empty displays all VPN profiles. |
+| `refreshIntervalSec`      |     `5` | Status refresh interval, clamped between 2 and 300 seconds.     |
+| `allowSeveralConnections` |  `true` | When `false`, connecting a VPN disconnects the others first.    |
 
 Settings can be changed with Omarchy's bar command:
 
 ```bash
 omarchy bar set dimitar.openvpn refreshIntervalSec 10
 omarchy bar set dimitar.openvpn connection "Work VPN"
+omarchy bar set dimitar.openvpn allowSeveralConnections false --json
 ```
 
 ## Credential and connection behavior
@@ -93,7 +100,9 @@ then to `nmcli` through its password-file input. They are not written to disk or
 placed in command-line arguments. The supplied username is saved in the
 NetworkManager connection profile.
 
-Connecting a profile leaves other active VPN connections up. When several are
+Connecting a profile leaves other active VPN connections up, unless
+`allowSeveralConnections` is off: then the others are disconnected first.
+Turning the setting off disconnects nothing by itself. When several are
 connected, NetworkManager decides which one carries the default route and DNS
 from each profile's own settings (for example `ipv4.never-default` and DNS
 priority).
