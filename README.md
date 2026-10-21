@@ -74,16 +74,18 @@ Left-click the VPN icon to open the panel.
 Widget settings are stored in the widget's entry in
 `~/.config/omarchy/shell.json`.
 
-| Setting              | Default | Description                                                     |
-| -------------------- | ------: | --------------------------------------------------------------- |
-| `connection`         |   Empty | Exact profile name to display. Empty displays all VPN profiles. |
-| `refreshIntervalSec` |     `5` | Status refresh interval, clamped between 2 and 300 seconds.     |
+| Setting                   | Default | Description                                                     |
+| ------------------------- | ------: | --------------------------------------------------------------- |
+| `connection`              |   Empty | Exact profile name to display. Empty displays all VPN profiles. |
+| `refreshIntervalSec`      |     `5` | Status refresh interval, clamped between 2 and 300 seconds.     |
+| `allowSeveralConnections` |  `true` | When `false`, connecting a VPN disconnects the others first.    |
 
 Settings can be changed with Omarchy's bar command:
 
 ```bash
 omarchy bar set dimitar.openvpn refreshIntervalSec 10
 omarchy bar set dimitar.openvpn connection "Work VPN"
+omarchy bar set dimitar.openvpn allowSeveralConnections false --json
 ```
 
 ## Credential and connection behavior
@@ -93,7 +95,9 @@ then to `nmcli` through its password-file input. They are not written to disk or
 placed in command-line arguments. The supplied username is saved in the
 NetworkManager connection profile.
 
-Connecting a profile leaves other active VPN connections up. When several are
+Connecting a profile leaves other active VPN connections up, unless
+`allowSeveralConnections` is off: then the others are disconnected first.
+Turning the setting off disconnects nothing by itself. When several are
 connected, NetworkManager decides which one carries the default route and DNS
 from each profile's own settings (for example `ipv4.never-default` and DNS
 priority).

@@ -18,6 +18,8 @@ Item {
   // uuid -> { state, device, address, gateway, dns } for every connected profile.
   property var connectionDetails: ({})
   property bool nmcliAvailable: true
+  // When false, connecting a VPN disconnects the others first.
+  property bool allowSeveralConnections: true
 
   property string listOutput: ""
   property string detailsOutput: ""
@@ -156,7 +158,7 @@ Item {
     busyUuid = authUuid
     setError("")
     authProcess.input = authUsername.replace(/[\r\n]/g, "") + "\n" + authPassword.replace(/[\r\n]/g, "") + "\n"
-    authProcess.command = [helperPath, authUuid]
+    authProcess.command = connectCommand(helperPath, authUuid)
     authProcess.running = true
   }
 
@@ -168,12 +170,29 @@ Item {
     actionProcess.running = true
   }
 
-  function deleteConnection(uuid) {
+  // The delete helper disconnects a connected profile before deleting it.
+  function deleteConnection(uuid, helperPath) {
     if (uuid === "" || actionProcess.running) return
     busyUuid = uuid
     setError("")
-    actionProcess.command = ["nmcli", "connection", "delete", "uuid", uuid]
+    actionProcess.command = [helperPath, uuid]
     actionProcess.running = true
+  }
+
+  function connectCommand(helperPath, uuid) {
+    var command = [helperPath, uuid]
+    if (!allowSeveralConnections) command.push("--exclusive")
+    return command
+  }
+
+  // A boolean setting may arrive as a string: omarchy bar set stores one
+  // unless given --json.
+  function settingFlag(value, fallback) {
+    if (value === true || value === false) return value
+    var text = String(value === undefined || value === null ? "" : value).trim().toLowerCase()
+    if (text === "true") return true
+    if (text === "false") return false
+    return fallback
   }
 
   function importProfile(helperPath) {

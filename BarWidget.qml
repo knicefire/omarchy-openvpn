@@ -111,7 +111,7 @@ Panel {
 
   function confirmDelete() {
     if (pendingDeleteUuid === "" || service.actionRunning) return
-    service.deleteConnection(pendingDeleteUuid)
+    service.deleteConnection(pendingDeleteUuid, bundledPath("delete-profile"))
     cancelDelete()
   }
 
