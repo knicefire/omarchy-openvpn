@@ -18,8 +18,9 @@ popup for connecting, disconnecting, importing, renaming, and deleting profiles.
 - Shows connected, connecting, disconnected, and unavailable states
 - Lists NetworkManager VPN profiles
 - Connects using a username and password supplied through standard input
-- Disconnects active VPN sessions
-- Displays the active interface, IPv4 address, gateway, and DNS server
+- Keeps several VPN connections up at once and disconnects each on its own
+- Shows the interface, IPv4 address, gateway, and DNS server under each
+  connected profile
 - Imports `.ovpn` and `.conf` profiles using Omarchy's file picker
 - Renames and deletes profiles
 - Supports keyboard dismissal and Omarchy panel switching
