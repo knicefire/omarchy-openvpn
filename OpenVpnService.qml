@@ -103,10 +103,9 @@ Item {
         connecting: fields[4] === "activating"
       })
     }
-    result.sort(function(a, b) {
-      if (a.active !== b.active) return a.active ? -1 : 1
-      return String(a.name).localeCompare(String(b.name))
-    })
+    // Name order only: with several VPNs up, moving connected rows to the top
+    // would shift the row that was just clicked.
+    result.sort(function(a, b) { return String(a.name).localeCompare(String(b.name)) })
     return result
   }
 

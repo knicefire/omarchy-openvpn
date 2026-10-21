@@ -61,6 +61,15 @@ TestCase {
     compare(svc.activeUuids(), [homeUuid, devUuid])
   }
 
+  function test_profilesKeepNameOrderWhenConnected() {
+    var p = svc.parseProfiles([
+      "u1:Alpha:vpn::",
+      "u2:Bravo:vpn:wlp59s0:activated",
+      "u3:Charlie:vpn::"
+    ].join("\n"))
+    compare(p.map(function(x) { return x.name }), ["Alpha", "Bravo", "Charlie"])
+  }
+
   function test_failedDetailsKeepPrevious() {
     svc.connectionDetails = { "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa": { state: "activated", device: "wlp59s0", address: "10.8.0.2/24", gateway: "10.8.0.1", dns: "10.8.0.1" } }
     svc.detailsOutput = "Error: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb - no such connection profile."
