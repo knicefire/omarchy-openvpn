@@ -160,6 +160,11 @@ Panel {
     onPressed: function(code) { if (code === Qt.LeftButton) root.toggle() }
   }
 
+  // The dialogs float over the rows. The panel must be at least as tall as the
+  // open dialog, or the dialog spills past the panel edges.
+  readonly property real dialogHeight: authCard.visible ? authCard.height + Style.space(24)
+    : renameCard.visible ? renameCard.height + Style.space(24) : 0
+
   KeyboardPanel {
     id: panel
     anchorItem: button
@@ -168,7 +173,7 @@ Panel {
     open: root.opened
     focusTarget: keys
     contentWidth: panel.fittedContentWidth(Style.space(430))
-    contentHeight: panel.fittedContentHeight(content.implicitHeight, Style.space(520))
+    contentHeight: panel.fittedContentHeight(Math.max(content.implicitHeight, root.dialogHeight), Style.space(520))
 
     PanelKeyCatcher {
       id: keys
@@ -356,6 +361,7 @@ Panel {
         color: Qt.rgba(0, 0, 0, 0.62)
 
         Rectangle {
+          id: authCard
           anchors.centerIn: parent
           width: Math.min(parent.width - Style.space(24), Style.space(320))
           height: authColumn.implicitHeight + Style.space(28)
@@ -434,6 +440,7 @@ Panel {
         color: Qt.rgba(0, 0, 0, 0.62)
 
         Rectangle {
+          id: renameCard
           anchors.centerIn: parent
           width: Math.min(parent.width - Style.space(24), Style.space(320))
           height: renameColumn.implicitHeight + Style.space(28)
