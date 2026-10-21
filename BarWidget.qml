@@ -161,6 +161,11 @@ Panel {
     onPressed: function(code) { if (code === Qt.LeftButton) root.toggle() }
   }
 
+  // The dialogs float over the rows. The panel must be at least as tall as the
+  // open dialog, or the dialog spills past the panel edges.
+  readonly property real dialogHeight: authCard.visible ? authCard.height + Style.space(24)
+    : renameCard.visible ? renameCard.height + Style.space(24) : 0
+
   KeyboardPanel {
     id: panel
     anchorItem: button
@@ -169,7 +174,7 @@ Panel {
     open: root.opened
     focusTarget: keys
     contentWidth: panel.fittedContentWidth(Style.space(430))
-    contentHeight: panel.fittedContentHeight(content.implicitHeight)
+    contentHeight: panel.fittedContentHeight(Math.max(content.implicitHeight, root.dialogHeight))
 
     PanelKeyCatcher {
       id: keys
@@ -209,7 +214,7 @@ Panel {
               id: heroLabels
               anchors.left: heroIcon.right
               anchors.leftMargin: Style.space(14)
-              anchors.right: refreshButton.left
+              anchors.right: importButton.left
               anchors.rightMargin: Style.space(12)
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(2)
@@ -236,18 +241,24 @@ Panel {
               }
             }
 
-            Rectangle {
+            OpenVpnIconButton {
+              id: importButton
+              anchors.right: refreshButton.left
+              anchors.rightMargin: Style.space(8)
+              anchors.verticalCenter: parent.verticalCenter
+              foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
+              icon: "\uf067"
+              busy: service.importRunning
+              onActivated: root.openImportPicker()
+            }
+
+            OpenVpnIconButton {
               id: refreshButton
               anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
-              width: Style.space(34)
-              height: Style.space(34)
-              radius: Style.space(4)
-              color: refreshMouse.containsMouse ? Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.12) : "transparent"
-              border.width: 1
-              border.color: root.dim
-              Text { anchors.centerIn: parent; text: "\uf021"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.caption }
-              MouseArea { id: refreshMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.refresh() }
+              foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
+              icon: "\uf021"
+              onActivated: root.refresh()
             }
           }
 
@@ -345,7 +356,6 @@ Panel {
             }
           }
 
-          OpenVpnActionButton { width: parent.width; foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: service.importRunning ? "Choose a profile…" : "Import profile"; enabled: !service.importRunning; onActivated: root.openImportPicker() }
         }
       }
 
@@ -356,6 +366,7 @@ Panel {
         color: Qt.rgba(0, 0, 0, 0.62)
 
         Rectangle {
+          id: authCard
           anchors.centerIn: parent
           width: Math.min(parent.width - Style.space(24), Style.space(320))
           height: authColumn.implicitHeight + Style.space(28)
@@ -434,6 +445,7 @@ Panel {
         color: Qt.rgba(0, 0, 0, 0.62)
 
         Rectangle {
+          id: renameCard
           anchors.centerIn: parent
           width: Math.min(parent.width - Style.space(24), Style.space(320))
           height: renameColumn.implicitHeight + Style.space(28)
