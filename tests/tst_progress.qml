@@ -75,18 +75,58 @@ TestCase {
     // A retry right after a failed connect starts while the old action settles.
     var s = make()
     s.queryHelper = "/p/nmcli-query"
+    // (The stub processes never stop, so the first action runs on the
+    // credential process and the second on the action process.)
     var other = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-    s.renameConnection(u, "B")
-    s.settleAction()
-    s.authUuid = other
+    s.authUuid = u
     s.submitAuthentication("/p/connect-profile")
+    s.settleAction()
+    s.renameConnection(other, "B")
     s.refresh()
     s.listOutput = other + ":B:vpn::"
     s.listExitCode = 0
     s.listStreamFinished = true
     s.finalizeList()
     compare(s.busyUuid, other)
-    compare(s.busyAction, "connect")
+    compare(s.busyAction, "rename")
+  }
+
+  function test_actionErrorSurvivesList() {
+    // A failed delete, disconnect or rename keeps its message after the
+    // refresh that follows; the next action clears it.
+    var s = make()
+    s.queryHelper = "/p/nmcli-query"
+    s.setError("Could not disconnect the profile, so it was not deleted.")
+    s.refresh()
+    s.listOutput = u + ":A:vpn::"
+    s.listExitCode = 0
+    s.listStreamFinished = true
+    s.finalizeList()
+    compare(s.lastError, "Could not disconnect the profile, so it was not deleted.")
+  }
+
+  function test_listErrorClearsOnSuccess() {
+    var s = make()
+    s.listOutput = "nmcli stalled"
+    s.listExitCode = 1
+    s.listStreamFinished = true
+    s.finalizeList()
+    compare(s.lastError, "nmcli stalled")
+    s.listOutput = u + ":A:vpn::"
+    s.listExitCode = 0
+    s.finalizeList()
+    compare(s.lastError, "")
+  }
+
+  function test_connectWaitsForRunningAction() {
+    // A Connect submitted while another action runs must not start a second
+    // process next to it.
+    var s = make()
+    s.renameConnection(u, "B")
+    s.authUuid = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    s.submitAuthentication("/p/connect-profile")
+    compare(s.busyUuid, u)
+    compare(s.busyAction, "rename")
   }
 
   function test_busyClearsAfterFreshList() {

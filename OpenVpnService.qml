@@ -26,6 +26,9 @@ Item {
   // The action has ended; busy stays until a list started after that arrives.
   property bool busySettling: false
   property bool listAfterAction: false
+  // lastError came from a failed inventory or details query, which the next
+  // successful list clears. Action errors stay until the next action.
+  property bool listErrorShown: false
 
   property string listOutput: ""
   property string detailsOutput: ""
@@ -49,6 +52,12 @@ Item {
 
   function setError(value) {
     lastError = boundedText(value, 4096).trim()
+    listErrorShown = false
+  }
+
+  function setListError(value) {
+    setError(value)
+    listErrorShown = true
   }
 
   function finalizeList() {
@@ -56,12 +65,12 @@ Item {
     nmcliAvailable = listExitCode === 0
     if (listExitCode === 0) {
       profiles = parseProfiles(listOutput)
-      if (authUuid === "" && !actionProcess.running && !importProcess.running) setError("")
+      if (listErrorShown) setError("")
       refreshDetails()
     } else if (listTimedOut) {
-      setError("NetworkManager inventory timed out.")
+      setListError("NetworkManager inventory timed out.")
     } else {
-      setError(listOutput === "" ? "Could not query NetworkManager profiles." : listOutput)
+      setListError(listOutput === "" ? "Could not query NetworkManager profiles." : listOutput)
     }
     // A list that started before the action ended still shows the old state,
     // so keep the action's status until a newer list arrives.
@@ -75,8 +84,8 @@ Item {
     if (detailsExitCode === null || !detailsStreamFinished) return
     // On failure the last known details stay; the next refresh replaces them.
     if (detailsExitCode === 0) connectionDetails = parseDetails(detailsOutput)
-    else if (detailsTimedOut) setError("Connection details timed out.")
-    else setError(detailsOutput === "" ? "Could not query connection details." : detailsOutput)
+    else if (detailsTimedOut) setListError("Connection details timed out.")
+    else setListError(detailsOutput === "" ? "Could not query connection details." : detailsOutput)
   }
 
   function boundedField(value, limit) {
@@ -163,7 +172,7 @@ Item {
   }
 
   function submitAuthentication(helperPath) {
-    if (authUuid === "" || authProcess.running) return
+    if (authUuid === "" || authProcess.running || actionProcess.running) return
     // A fully blank submission is how certificate-only (connection-type=tls)
     // profiles connect; the helper re-checks the profile type before acting.
     // A half-filled form is still rejected.
