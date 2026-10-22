@@ -417,7 +417,7 @@ Panel {
                   Layout.fillWidth: true; spacing: 0
                   Text { Layout.fillWidth: true; text: row.profile.name; textFormat: Text.PlainText; color: root.foreground; elide: Text.ElideRight; font.family: root.fontFamily; font.pixelSize: Style.font.body }
                   Text {
-                    text: row.profile.active ? "Connected" : row.profile.connecting ? "Connecting…" : "Disconnected"
+                    text: service.profileStatus(row.profile)
                     textFormat: Text.PlainText
                     color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.caption
                   }
@@ -426,8 +426,8 @@ Panel {
                 // cancelled credential dialog leaves the switch off.
                 ToggleSwitch {
                   Layout.rightMargin: Style.space(8)
-                  checked: row.profile.active || row.profile.connecting
-                  busy: root.busyUuid !== "" || row.profile.connecting
+                  checked: service.profileSwitchOn(row.profile)
+                  busy: root.busyUuid !== "" || row.profile.connecting || row.profile.disconnecting
                   // ToggleSwitch only ignores clicks while busy; dim it as well.
                   opacity: busy ? 0.55 : 1
                   foreground: root.foreground
