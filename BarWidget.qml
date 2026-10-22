@@ -108,10 +108,10 @@ Panel {
     cancelRename()
   }
 
-  // Only the uuid gates the confirmation. The name and note stay so the box
-  // keeps its text while it folds away; requestDelete sets them each time.
   function cancelDelete() {
     pendingDeleteUuid = ""
+    pendingDeleteName = ""
+    pendingDeleteConnected = false
   }
 
   function confirmDelete() {
@@ -195,7 +195,8 @@ Panel {
   // The dialogs float over the rows. The panel must be at least as tall as the
   // open dialog, or the dialog spills past the panel edges.
   readonly property real dialogHeight: authCard.visible ? authCard.height + Style.space(24)
-    : renameCard.visible ? renameCard.height + Style.space(24) : 0
+    : renameCard.visible ? renameCard.height + Style.space(24)
+    : deleteCard.visible ? deleteCard.height + Style.space(24) : 0
 
   KeyboardPanel {
     id: panel
@@ -323,44 +324,6 @@ Panel {
             textFormat: Text.PlainText
             color: bar ? bar.urgent : Color.urgent; wrapMode: Text.Wrap
             font.family: root.fontFamily; font.pixelSize: Style.font.caption
-          }
-
-          OpenVpnReveal {
-            shown: root.pendingDeleteUuid !== ""
-            width: parent.width
-
-            Rectangle {
-              width: parent.width
-              height: deleteColumn.implicitHeight + Style.space(18)
-              radius: Style.space(4)
-              color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08)
-              border.width: 1
-              border.color: bar ? bar.urgent : Color.urgent
-              Column {
-                id: deleteColumn
-                anchors.centerIn: parent
-                width: parent.width - Style.space(20)
-                spacing: Style.space(8)
-                Text {
-                  width: parent.width
-                  text: "Delete “" + root.pendingDeleteName + "”?" + (root.pendingDeleteConnected ? " It will be disconnected first." : "")
-                  textFormat: Text.PlainText
-                  color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body
-                  wrapMode: Text.WordWrap
-                }
-                Row {
-                  anchors.right: parent.right; spacing: Style.space(16)
-                  Text {
-                    text: "Cancel"; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body
-                    MouseArea { anchors.fill: parent; anchors.margins: -Style.space(5); cursorShape: Qt.PointingHandCursor; onClicked: root.cancelDelete() }
-                  }
-                  Text {
-                    text: "Delete"; color: bar ? bar.urgent : Color.urgent; font.family: root.fontFamily; font.pixelSize: Style.font.body; font.bold: true
-                    MouseArea { anchors.fill: parent; anchors.margins: -Style.space(5); cursorShape: Qt.PointingHandCursor; onClicked: root.confirmDelete() }
-                  }
-                }
-              }
-            }
           }
 
           OpenVpnReveal {
@@ -598,6 +561,55 @@ Panel {
                 enabled: root.renameName.trim() !== "" && root.renameName.trim() !== root.renameOriginalName
                 onActivated: root.confirmRename()
               }
+            }
+          }
+        }
+      }
+
+      // Escape reaches PanelKeyCatcher (not blocked here), and handleEscape
+      // cancels a pending delete first.
+      Rectangle {
+        visible: root.pendingDeleteUuid !== ""
+        anchors.fill: parent
+        z: 10
+        color: Qt.rgba(0, 0, 0, 0.62)
+        opacity: visible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
+
+        Rectangle {
+          id: deleteCard
+          anchors.centerIn: parent
+          width: Math.min(parent.width - Style.space(24), Style.space(320))
+          height: deleteColumn.implicitHeight + Style.space(28)
+          radius: Style.space(6)
+          color: Color.popups.background
+          border.width: 1
+          border.color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.22)
+
+          Column {
+            id: deleteColumn
+            anchors.centerIn: parent
+            width: parent.width - Style.space(28)
+            spacing: Style.space(12)
+
+            Text { width: parent.width; text: "Delete VPN profile"; color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.title; font.bold: true }
+            Text {
+              width: parent.width
+              text: "Delete “" + root.pendingDeleteName + "”?" + (root.pendingDeleteConnected ? " It will be disconnected first." : "")
+              textFormat: Text.PlainText
+              color: root.dim
+              wrapMode: Text.Wrap
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+            }
+
+            Row {
+              anchors.right: parent.right
+              spacing: Style.space(8)
+              OpenVpnSmallButton { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: "Cancel"; onActivated: root.cancelDelete() }
+              OpenVpnSmallButton { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; urgentColor: bar ? bar.urgent : Color.urgent; label: "Delete"; urgent: true; enabled: !service.actionRunning; onActivated: root.confirmDelete() }
             }
           }
         }
