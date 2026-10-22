@@ -26,6 +26,9 @@ Item {
   // The action has ended; busy stays until a list started after that arrives.
   property bool busySettling: false
   property bool listAfterAction: false
+  property real settleStartedAt: 0
+  // How long a busy state may sit with nothing running before it is released.
+  readonly property int busyWatchdogMs: 10000
   // lastError came from a failed inventory or details query, which the next
   // successful list clears. Action errors stay until the next action.
   property bool listErrorShown: false
@@ -211,7 +214,19 @@ Item {
 
   function settleAction() {
     busySettling = true
+    settleStartedAt = Date.now()
     refreshDelay.restart()
+  }
+
+  // Safety net: busy with no process running, and no refresh pending for a
+  // whole watchdog period, means a helper never started or never reported its
+  // exit. Release it so the switches do not stay disabled until a restart.
+  function releaseStuckBusy(now) {
+    if (busyUuid === "" || actionProcess.running || authProcess.running) return false
+    if (busySettling && now - settleStartedAt < busyWatchdogMs) return false
+    console.warn("openvpn-widget", "released a busy state that no action ended")
+    clearBusy()
+    return true
   }
 
   function clearBusy() {
@@ -390,6 +405,12 @@ Item {
 
   Timer { interval: service.refreshInterval; running: true; repeat: true; triggeredOnStart: true; onTriggered: service.refresh() }
   Timer { id: refreshDelay; interval: 700; onTriggered: service.refresh() }
+  Timer {
+    interval: service.busyWatchdogMs
+    repeat: true
+    running: service.busyUuid !== ""
+    onTriggered: service.releaseStuckBusy(Date.now())
+  }
   Timer {
     id: listDeadline
     interval: 6000
