@@ -138,10 +138,10 @@ Panel {
     cancelRename()
   }
 
+  // Only the uuid gates the confirmation. The name and note stay so the box
+  // keeps its text while it folds away; requestDelete sets them each time.
   function cancelDelete() {
     pendingDeleteUuid = ""
-    pendingDeleteName = ""
-    pendingDeleteConnected = false
   }
 
   function confirmDelete() {
@@ -355,113 +355,131 @@ Panel {
             font.family: root.fontFamily; font.pixelSize: Style.font.caption
           }
 
-          Rectangle {
-            visible: root.pendingDeleteUuid !== ""
+          OpenVpnReveal {
+            shown: root.pendingDeleteUuid !== ""
             width: parent.width
-            height: deleteColumn.implicitHeight + Style.space(18)
-            radius: Style.space(4)
-            color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08)
-            border.width: 1
-            border.color: bar ? bar.urgent : Color.urgent
-            Column {
-              id: deleteColumn
-              anchors.centerIn: parent
-              width: parent.width - Style.space(20)
-              spacing: Style.space(8)
-              Text {
-                width: parent.width
-                text: "Delete “" + root.pendingDeleteName + "”?" + (root.pendingDeleteConnected ? " It will be disconnected first." : "")
-                textFormat: Text.PlainText
-                color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body
-                wrapMode: Text.WordWrap
-              }
-              Row {
-                anchors.right: parent.right; spacing: Style.space(16)
-                Text {
-                  text: "Cancel"; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body
-                  MouseArea { anchors.fill: parent; anchors.margins: -Style.space(5); cursorShape: Qt.PointingHandCursor; onClicked: root.cancelDelete() }
-                }
-                Text {
-                  text: "Delete"; color: bar ? bar.urgent : Color.urgent; font.family: root.fontFamily; font.pixelSize: Style.font.body; font.bold: true
-                  MouseArea { anchors.fill: parent; anchors.margins: -Style.space(5); cursorShape: Qt.PointingHandCursor; onClicked: root.confirmDelete() }
-                }
-              }
-            }
-          }
 
-          Repeater {
-            model: root.profiles
-            delegate: Column {
-              id: row
-              required property var modelData
-              required property int index
-              readonly property var profile: modelData
-              readonly property var details: root.connectionDetails[profile.uuid] || ({})
-              visible: !root.settingsOpen
-              width: content.width
-
-              Rectangle { visible: row.index > 0; width: parent.width; height: 1; color: root.foreground; opacity: 0.14 }
-
-              RowLayout {
-                width: parent.width; height: Style.space(48); spacing: Style.space(10)
+            Rectangle {
+              width: parent.width
+              height: deleteColumn.implicitHeight + Style.space(18)
+              radius: Style.space(4)
+              color: Qt.rgba(root.foreground.r, root.foreground.g, root.foreground.b, 0.08)
+              border.width: 1
+              border.color: bar ? bar.urgent : Color.urgent
+              Column {
+                id: deleteColumn
+                anchors.centerIn: parent
+                width: parent.width - Style.space(20)
+                spacing: Style.space(8)
                 Text {
-                  id: profileIconText
-                  Layout.leftMargin: Style.space(8)
-                  text: root.profileIcon
-                  color: row.profile.active ? root.foreground : root.dim
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.subtitle
-                  opacity: root.busyUuid === row.profile.uuid ? 0.45 : 1
+                  width: parent.width
+                  text: "Delete “" + root.pendingDeleteName + "”?" + (root.pendingDeleteConnected ? " It will be disconnected first." : "")
+                  textFormat: Text.PlainText
+                  color: root.foreground; font.family: root.fontFamily; font.pixelSize: Style.font.body
+                  wrapMode: Text.WordWrap
                 }
-                ColumnLayout {
-                  Layout.fillWidth: true; spacing: 0
-                  Text { Layout.fillWidth: true; text: row.profile.name; textFormat: Text.PlainText; color: root.foreground; elide: Text.ElideRight; font.family: root.fontFamily; font.pixelSize: Style.font.body }
+                Row {
+                  anchors.right: parent.right; spacing: Style.space(16)
                   Text {
-                    text: service.profileStatus(row.profile)
-                    textFormat: Text.PlainText
-                    color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.caption
+                    text: "Cancel"; color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.body
+                    MouseArea { anchors.fill: parent; anchors.margins: -Style.space(5); cursorShape: Qt.PointingHandCursor; onClicked: root.cancelDelete() }
+                  }
+                  Text {
+                    text: "Delete"; color: bar ? bar.urgent : Color.urgent; font.family: root.fontFamily; font.pixelSize: Style.font.body; font.bold: true
+                    MouseArea { anchors.fill: parent; anchors.margins: -Style.space(5); cursorShape: Qt.PointingHandCursor; onClicked: root.confirmDelete() }
                   }
                 }
-                // Bound to the profile state and never set by hand, so a
-                // cancelled credential dialog leaves the switch off.
-                ToggleSwitch {
-                  Layout.rightMargin: Style.space(8)
-                  checked: service.profileSwitchOn(row.profile)
-                  busy: root.busyUuid !== "" || row.profile.connecting || row.profile.disconnecting
-                  // ToggleSwitch only ignores clicks while busy; dim it as well.
-                  opacity: busy ? 0.55 : 1
-                  foreground: root.foreground
-                  accent: Color.accent
-                  onToggled: root.setConnection(row.profile)
-                }
-              }
-
-              Column {
-                visible: row.profile.active
-                x: Style.space(8) + profileIconText.width + Style.space(10)
-                width: parent.width - x - Style.space(8)
-                bottomPadding: Style.space(8)
-                spacing: Style.space(4)
-                OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "Interface"; value: row.details.device || "—" }
-                OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "Address"; value: row.details.address || "—" }
-                OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "Gateway"; value: row.details.gateway || "—" }
-                OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "DNS"; value: row.details.dns || "—" }
               }
             }
           }
 
-          OpenVpnSettingsView {
-            visible: root.settingsOpen
+          OpenVpnReveal {
+            shown: !root.settingsOpen
             width: parent.width
-            profiles: root.profiles
-            busyUuid: root.busyUuid
-            allowSeveralConnections: root.allowSeveralConnections
-            foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
-            urgentColor: bar ? bar.urgent : Color.urgent
-            profileIcon: root.profileIcon
-            onSeveralConnectionsToggled: root.persistSettings({ allowSeveralConnections: !root.allowSeveralConnections })
-            onRenameRequested: function(profile) { root.requestRename(profile) }
-            onDeleteRequested: function(profile) { root.requestDelete(profile) }
+
+            // Counted by index, so rows survive each refresh and can animate their
+            // own changes; the name sort keeps each index on the same profile.
+            Repeater {
+              model: root.profiles.length
+              delegate: Column {
+                id: row
+                required property int index
+                readonly property var profile: root.profiles[index]
+                  || ({ uuid: "", name: "", active: false, connecting: false, disconnecting: false })
+                readonly property var details: root.connectionDetails[profile.uuid] || ({})
+                width: content.width
+
+                Rectangle { visible: row.index > 0; width: parent.width; height: 1; color: root.foreground; opacity: 0.14 }
+
+                RowLayout {
+                  width: parent.width; height: Style.space(48); spacing: Style.space(10)
+                  Text {
+                    id: profileIconText
+                    Layout.leftMargin: Style.space(8)
+                    text: root.profileIcon
+                    color: row.profile.active ? root.foreground : root.dim
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.subtitle
+                    opacity: root.busyUuid === row.profile.uuid ? 0.45 : 1
+                  }
+                  ColumnLayout {
+                    Layout.fillWidth: true; spacing: 0
+                    Text { Layout.fillWidth: true; text: row.profile.name; textFormat: Text.PlainText; color: root.foreground; elide: Text.ElideRight; font.family: root.fontFamily; font.pixelSize: Style.font.body }
+                    Text {
+                      text: service.profileStatus(row.profile)
+                      textFormat: Text.PlainText
+                      color: root.dim; font.family: root.fontFamily; font.pixelSize: Style.font.caption
+                    }
+                  }
+                  // Bound to the profile state and never set by hand, so a
+                  // cancelled credential dialog leaves the switch off.
+                  ToggleSwitch {
+                    Layout.rightMargin: Style.space(8)
+                    checked: service.profileSwitchOn(row.profile)
+                    busy: root.busyUuid !== "" || row.profile.connecting || row.profile.disconnecting
+                    // ToggleSwitch only ignores clicks while busy; dim it as well.
+                    opacity: busy ? 0.55 : 1
+                    Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                    foreground: root.foreground
+                    accent: Color.accent
+                    onToggled: root.setConnection(row.profile)
+                  }
+                }
+
+                OpenVpnReveal {
+                  shown: row.profile.active
+                  width: parent.width
+                  Column {
+                    x: Style.space(8) + profileIconText.width + Style.space(10)
+                    width: parent.width - x - Style.space(8)
+                    bottomPadding: Style.space(8)
+                    spacing: Style.space(4)
+                    OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "Interface"; value: row.details.device || "—" }
+                    OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "Address"; value: row.details.address || "—" }
+                    OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "Gateway"; value: row.details.gateway || "—" }
+                    OpenVpnInfoPair { foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily; label: "DNS"; value: row.details.dns || "—" }
+                  }
+                }
+              }
+            }
+          }
+
+          OpenVpnReveal {
+            shown: root.settingsOpen
+            width: parent.width
+
+            OpenVpnSettingsView {
+              width: parent.width
+              profiles: root.profiles
+              busyUuid: root.busyUuid
+              allowSeveralConnections: root.allowSeveralConnections
+              foreground: root.foreground; dim: root.dim; fontFamily: root.fontFamily
+              urgentColor: bar ? bar.urgent : Color.urgent
+              profileIcon: root.profileIcon
+              onSeveralConnectionsToggled: root.persistSettings({ allowSeveralConnections: !root.allowSeveralConnections })
+              onRenameRequested: function(profile) { root.requestRename(profile) }
+              onDeleteRequested: function(profile) { root.requestDelete(profile) }
+            }
           }
 
         }
@@ -472,6 +490,12 @@ Panel {
         anchors.fill: parent
         z: 10
         color: Qt.rgba(0, 0, 0, 0.62)
+        opacity: visible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+
+        // The dimmed area is part of the dialog: clicks on it must not reach
+        // the switches and buttons underneath.
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
 
         Rectangle {
           id: authCard
@@ -551,6 +575,10 @@ Panel {
         anchors.fill: parent
         z: 10
         color: Qt.rgba(0, 0, 0, 0.62)
+        opacity: visible ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
 
         Rectangle {
           id: renameCard
