@@ -129,6 +129,33 @@ TestCase {
     compare(s.busyAction, "rename")
   }
 
+  function test_stuckBusyIsReleased() {
+    // Busy with no process running and no refresh pending: a helper that
+    // never started or never reported its exit.
+    var s = make()
+    s.startBusy(u, "delete")
+    verify(s.releaseStuckBusy(Date.now()))
+    compare(s.busyUuid, "")
+    compare(s.busyAction, "")
+  }
+
+  function test_runningActionIsNotReleased() {
+    var s = make()
+    s.deleteConnection(u, "/p/delete-profile")
+    verify(!s.releaseStuckBusy(Date.now() + 60000))
+    compare(s.busyUuid, u)
+  }
+
+  function test_settlingIsReleasedOnlyWhenOld() {
+    var s = make()
+    s.startBusy(u, "disconnect")
+    s.settleAction()
+    verify(!s.releaseStuckBusy(Date.now()))
+    compare(s.busyUuid, u)
+    verify(s.releaseStuckBusy(Date.now() + s.busyWatchdogMs))
+    compare(s.busyUuid, "")
+  }
+
   function test_busyClearsAfterFreshList() {
     var s = make()
     s.queryHelper = "/p/nmcli-query"
