@@ -443,6 +443,10 @@ Panel {
         z: 10
         color: Qt.rgba(0, 0, 0, 0.62)
 
+        // The dimmed area is part of the dialog: clicks on it must not reach
+        // the switches and buttons underneath.
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
+
         Rectangle {
           id: authCard
           anchors.centerIn: parent
@@ -521,6 +525,8 @@ Panel {
         anchors.fill: parent
         z: 10
         color: Qt.rgba(0, 0, 0, 0.62)
+
+        MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; hoverEnabled: true }
 
         Rectangle {
           id: renameCard
